@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Presensi{% endblock %}
+{% block heading %}Presensi & Verifikasi Kehadiran{% endblock %}
+{% block content %}
+<div class="stats">
+  <div class="stat"><span class="stat-label">Hadir</span><strong class="stat-value">{{ attended }}</strong><span class="stat-sub">dari {{ total }} peserta</span></div>
+  {% for method, count in methods.items() %}
+  <div class="stat"><span class="stat-label">Via {{ {'code': 'kode presensi', 'zoom_csv': 'laporan Zoom (CSV)', 'zoom_api': 'Zoom API', 'manual': 'manual', 'api': 'API'}.get(method, method) }}</span><strong class="stat-value">{{ count }}</strong></div>
+  {% endfor %}
+</div>
+
+{% if summary %}
+<section class="panel">
+  <h2>Hasil impor</h2>
+  <p>{{ summary.rows }} baris dibaca · <strong>{{ summary.marked }}</strong> peserta baru ditandai hadir · {{ summary.already }} sudah hadir sebelumnya · durasi minimum {{ summary.min_minutes }} menit.</p>
+  {% if summary.below_threshold %}<details><summary>{{ summary.below_threshold|length }} di bawah durasi minimum</summary><ul>{% for x in summary.below_threshold %}<li>{{ x }}</li>{% endfor %}</ul></details>{% endif %}
+  {% if summary.unmatched %}<details><summary>{{ summary.unmatched|length }} email tidak cocok dengan pendaftar</summary><ul>{% for x in summary.unmatched %}<li>{{ x }}</li>{% endfor %}</ul></details>{% endif %}
+  {% if summary.no_email %}<details><summary>{{ summary.no_email|length }} peserta Zoom tanpa email (periksa & tandai manual)</summary><ul>{% for x in summary.no_email %}<li>{{ x }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% endif %}
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Kode presensi (saat acara)</h2>
+    <form method="post" class="form">
+      {{ m.csrf() }}<input type="hidden" name="kind" value="settings">
+      {% for key in ['attendance_code', 'attendance_code_open', 'attendance_min_minutes'] %}{{ m.setting_field(key, values) }}{% endfor %}
+      <button class="btn btn-primary" type="submit">Simpan</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>Impor laporan peserta Zoom (CSV)</h2>
+    <p class="muted small">Zoom web → Reports → Usage → pilih meeting → Participants → Export (centang “Show unique users” opsional). Peserta dicocokkan berdasarkan email.</p>
+    <form method="post" enctype="multipart/form-data" class="form">
+      {{ m.csrf() }}<input type="hidden" name="kind" value="csv">
+      <div class="field"><label for="report">File CSV</label><input id="report" name="report" type="file" accept=".csv,text/csv" required></div>
+      <button class="btn btn-primary" type="submit">Impor & verifikasi</button>
+    </form>
+    <h2 class="mt">Tarik dari Zoom API</h2>
+    {% if zoom_api %}
+    <form method="post" class="form">
+      {{ m.csrf() }}<input type="hidden" name="kind" value="zoom_api">
+      <div class="field"><label for="meeting_id">Meeting ID</label><input id="meeting_id" name="meeting_id" value="{{ values.zoom_meeting_id }}"></div>
+      <button class="btn btn-ghost" type="submit">Ambil laporan peserta</button>
+    </form>
+    {% else %}
+    <p class="muted small">Belum dikonfigurasi. Isi ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET di .env (lihat docs/OPERATIONS.md).</p>
+    {% endif %}
+  </section>
+</div>
+<p class="muted">Penandaan manual: buka detail peserta di menu <a href="{{ url_for('admin.participants') }}">Peserta</a>.</p>
+{% endblock %}

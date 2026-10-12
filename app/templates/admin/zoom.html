@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Link Zoom{% endblock %}
+{% block heading %}Link Zoom{% endblock %}
+{% block content %}
+<div class="grid-2">
+  <section class="panel">
+    <h2>1. Simpan link (rahasia)</h2>
+    <p class="muted">Link hanya tersimpan di server dan tidak tampil di halaman publik sampai dipublikasikan.</p>
+    <form method="post" action="{{ url_for('admin.zoom_save') }}" class="form">
+      {{ m.csrf() }}
+      <div class="field"><label for="zoom_url">Link Zoom meeting</label>
+        <input id="zoom_url" name="zoom_url" type="url" value="{{ values.zoom_url }}" placeholder="https://us06web.zoom.us/j/..." maxlength="500" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field"><label for="zoom_meeting_id">Meeting ID</label><input id="zoom_meeting_id" name="zoom_meeting_id" value="{{ values.zoom_meeting_id }}" autocomplete="off"></div>
+        <div class="field"><label for="zoom_passcode">Passcode</label><input id="zoom_passcode" name="zoom_passcode" value="{{ values.zoom_passcode }}" autocomplete="off"></div>
+      </div>
+      <label class="check"><input type="checkbox" name="zoom_auto_publish" value="1" {% if values.zoom_auto_publish %}checked{% endif %}>
+        <span>Publikasikan & kirim otomatis saat jendela publikasi dibuka ({{ opens_at|local }} {{ tz_label() }}) — membutuhkan worker aktif.</span></label>
+      <button class="btn btn-primary" type="submit">Simpan</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>2. Publikasikan & kirim ke peserta</h2>
+    <dl class="kv">
+      <dt>Acara mulai</dt><dd>{{ event_start|local }} {{ tz_label() }}</dd>
+      <dt>Jendela publikasi</dt><dd>mulai {{ opens_at|local }} {{ tz_label() }} ({{ values.zoom_publish_lead_minutes }} menit sebelum acara)</dd>
+      <dt>Status</dt><dd>{% if published_at %}<span class="badge badge-delivered">Dipublikasikan {{ published_at|local }}</span>{% else %}<span class="badge">Belum dipublikasikan</span>{% endif %}</dd>
+    </dl>
+    {% if zoom_msgs %}
+      <p>Pengiriman link Zoom: {% for s, c in zoom_msgs.items() %}{{ m.status_badge(s, status_labels) }} {{ c }} {% endfor %}</p>
+    {% endif %}
+
+    {% if not values.zoom_url %}
+      <div class="alert alert-warning">Simpan link Zoom terlebih dahulu.</div>
+    {% else %}
+      <form method="post" action="{{ url_for('admin.zoom_publish') }}" class="form">
+        {{ m.csrf() }}
+        {% if not window_open %}
+          <div class="alert alert-info">{{ window_msg }}</div>
+          <label class="check"><input type="checkbox" name="override" value="1" data-toggle-target="#override-reason"> <span>Publikasikan lebih awal (tercatat di audit log)</span></label>
+          <div class="field" id="override-reason"><label for="reason">Alasan</label><input id="reason" name="reason" maxlength="300"></div>
+        {% endif %}
+        <button class="btn btn-accent" type="submit" data-confirm="Kirim link Zoom ke seluruh peserta terdaftar sekarang?">{{ 'Publikasikan ulang & kirim link terbaru' if published_at else 'Publikasikan & kirim ke peserta' }}</button>
+      </form>
+      {% if published_at %}
+      <form method="post" action="{{ url_for('admin.zoom_unpublish') }}" class="mt">
+        {{ m.csrf() }}
+        <button class="btn btn-danger btn-sm" type="submit" data-confirm="Tarik publikasi? Link akan disembunyikan dari halaman peserta dan pesan yang belum terkirim dibatalkan.">Tarik publikasi</button>
+      </form>
+      {% endif %}
+    {% endif %}
+    <p class="hint">Hanya peserta berstatus terdaftar yang menerima link. WhatsApp hanya dikirim ke peserta yang memberi izin; lainnya via email (bila SMTP aktif) dan halaman peserta.</p>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Peserta{% endblock %}
+{% block heading %}Peserta{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <input name="q" value="{{ args.get('q', '') }}" placeholder="Cari nama, email, WA, institusi, NIM" aria-label="Cari">
+  <select name="category" aria-label="Kategori"><option value="">Semua kategori</option>
+    {% for k, v in categories.items() %}<option value="{{ k }}" {% if args.get('category') == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+  <select name="attended" aria-label="Kehadiran"><option value="">Semua kehadiran</option>
+    <option value="yes" {% if args.get('attended') == 'yes' %}selected{% endif %}>Hadir</option>
+    <option value="no" {% if args.get('attended') == 'no' %}selected{% endif %}>Belum hadir</option></select>
+  <select name="wa" aria-label="WhatsApp"><option value="">Semua izin WA</option>
+    <option value="consent" {% if args.get('wa') == 'consent' %}selected{% endif %}>Izin WA aktif</option>
+    <option value="no" {% if args.get('wa') == 'no' %}selected{% endif %}>Tanpa izin / berhenti</option></select>
+  <select name="status" aria-label="Status"><option value="registered">Terdaftar</option>
+    <option value="cancelled" {% if args.get('status') == 'cancelled' %}selected{% endif %}>Dibatalkan</option>
+    <option value="all" {% if args.get('status') == 'all' %}selected{% endif %}>Semua status</option></select>
+  <button class="btn btn-primary" type="submit">Terapkan</button>
+  <a class="btn btn-ghost" href="{{ url_for('admin.export_participants', **args.to_dict()) }}">Ekspor CSV</a>
+</form>
+
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Nama</th><th>Kontak</th><th>Kategori</th><th>Institusi</th><th>WA</th><th>Hadir</th><th>Sertifikat</th><th>Daftar</th></tr></thead>
+  <tbody>
+  {% for p in result['items'] %}
+    <tr>
+      <td><a href="{{ url_for('admin.participant_detail', pid=p.id) }}"><strong>{{ p.full_name }}</strong></a>{% if p.status != 'registered' %} <span class="badge badge-cancelled">dibatalkan</span>{% endif %}</td>
+      <td class="small">{{ p.email }}<br>+{{ p.phone }}</td>
+      <td>{{ p.category_label }}</td>
+      <td class="small">{{ p.institution }}{% if p.student_id %}<br>NIM {{ p.student_id }}{% endif %}</td>
+      <td>{% if p.wa_opted_out_at %}<span class="badge badge-failed">berhenti</span>{% elif p.wa_consent %}<span class="badge badge-delivered">izin</span>{% else %}<span class="badge">tidak</span>{% endif %}</td>
+      <td>{% if p.attended %}<span class="badge badge-delivered">hadir</span>{% else %}–{% endif %}</td>
+      <td>{% if p.certificate and not p.certificate.revoked_at %}<span class="badge badge-sent">terbit</span>{% else %}–{% endif %}</td>
+      <td class="small">{{ p.created_at|local }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8" class="muted center">Tidak ada data.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ m.pagination(result, 'admin.participants', args) }}
+{% endblock %}

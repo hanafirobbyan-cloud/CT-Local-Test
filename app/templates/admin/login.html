@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Masuk — Admin Webinar</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="admin login-page">
+  <main class="login-box">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">1/0</span><span class="brand-text">Admin<strong>Webinar</strong></span></div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label for="username">Username</label><input id="username" name="username" required autocomplete="username" autofocus></div>
+      <div class="field"><label for="password">Kata sandi</label><input id="password" name="password" type="password" required autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-block" type="submit">Masuk</button>
+    </form>
+  </main>
+</body>
+</html>

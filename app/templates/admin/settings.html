@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Konten & Pengaturan{% endblock %}
+{% block heading %}Konten & Pengaturan{% endblock %}
+{% block content %}
+<div class="alert alert-info">Isi awal diambil dari TOR. Detail yang tidak tercantum di TOR (penyelenggara, logo, foto, profil lengkap pembicara) dibiarkan kosong — lengkapi dengan data resmi.</div>
+<form method="post" enctype="multipart/form-data" class="form">
+  {{ m.csrf() }}
+  <section class="panel"><h2>Informasi acara</h2>
+    {% for key in ['event_title', 'event_theme', 'event_start', 'event_end', 'event_time_label', 'event_platform', 'event_background', 'event_objective', 'audience_text'] %}{{ m.setting_field(key, values) }}{% endfor %}
+  </section>
+  <section class="panel"><h2>Pembicara</h2>
+    <div class="grid-2">
+      <div>{% for key in ['speaker_name', 'speaker_role', 'speaker_bio', 'speaker_photo'] %}{{ m.setting_field(key, values) }}{% endfor %}</div>
+      <div>{% for key in ['moderator_name', 'moderator_role', 'moderator_bio', 'moderator_photo'] %}{{ m.setting_field(key, values) }}{% endfor %}</div>
+    </div>
+  </section>
+  <section class="panel"><h2>Rundown, benefit & FAQ</h2>
+    {% for key in ['agenda', 'benefits', 'faq'] %}{{ m.setting_field(key, values) }}{% endfor %}
+  </section>
+  <section class="panel"><h2>Penyelenggara & kontak</h2>
+    {% for key in ['organizer_name', 'organizer_logo', 'poster_image', 'contact_name', 'contact_phone'] %}{{ m.setting_field(key, values) }}{% endfor %}
+  </section>
+  <section class="panel"><h2>Pendaftaran & privasi</h2>
+    {% for key in ['registration_open', 'registration_close_at', 'registration_capacity', 'privacy_text', 'consent_version'] %}{{ m.setting_field(key, values) }}{% endfor %}
+  </section>
+  <div class="sticky-actions"><button class="btn btn-primary btn-lg" type="submit">Simpan semua</button></div>
+</form>
+{% endblock %}

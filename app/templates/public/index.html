@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">Webinar · {{ setting('event_theme') }}</p>
+      <h1>{{ setting('event_title') }}</h1>
+      <ul class="facts" aria-label="Detail acara">
+        <li><span class="fact-label">Tanggal</span><span>{{ event_start|indo_date }}</span></li>
+        <li><span class="fact-label">Waktu</span><span>{{ setting('event_time_label') }}</span></li>
+        <li><span class="fact-label">Platform</span><span>{{ setting('event_platform') }}</span></li>
+      </ul>
+      <div class="hero-actions">
+        {% if reg_open %}
+        <a class="btn btn-accent btn-lg" href="{{ url_for('public.register') }}">Daftar Sekarang</a>
+        {% else %}
+        <span class="btn btn-disabled btn-lg" aria-disabled="true">{{ closed_reason }}</span>
+        {% endif %}
+        <a class="btn btn-ghost btn-lg" href="#tentang">Lihat Detail</a>
+      </div>
+      {% if event_start %}
+      <div class="countdown" data-countdown="{{ event_start.isoformat() }}Z" aria-live="polite">
+        <div><strong data-unit="days">–</strong><span>hari</span></div>
+        <div><strong data-unit="hours">–</strong><span>jam</span></div>
+        <div><strong data-unit="minutes">–</strong><span>menit</span></div>
+        <div><strong data-unit="seconds">–</strong><span>detik</span></div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      {% if setting('poster_image') %}
+        <img class="poster" src="{{ url_for('public.media', name=setting('poster_image')) }}" alt="">
+      {% else %}
+      <svg viewBox="0 0 360 300" class="circuit">
+        <g class="wires">
+          <path d="M20 70 H110"/><path d="M20 130 H110"/><path d="M170 100 H230 V160 H260"/>
+          <path d="M20 210 H110"/><path d="M20 250 H110"/><path d="M170 230 H230 V180 H260"/>
+          <path d="M320 170 H350"/>
+        </g>
+        <g class="gate"><path d="M110 50 H140 A50 50 0 0 1 140 150 H110 Z"/><text x="128" y="106">AND</text></g>
+        <g class="gate"><path d="M110 190 Q150 190 170 230 Q150 270 110 270 Q130 230 110 190 Z"/><text x="124" y="236">OR</text></g>
+        <g class="gate accent"><path d="M260 140 H285 A40 40 0 0 1 285 200 H260 Z"/><text x="266" y="176">GROW</text></g>
+        <g class="bits"><text x="20" y="62">1</text><text x="20" y="122">1</text><text x="20" y="202">0</text><text x="20" y="242">1</text><text x="336" y="162">1</text></g>
+        <circle cx="350" cy="170" r="6" class="led"/>
+      </svg>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section id="tentang" class="section">
+  <div class="container two-col">
+    <div>
+      <p class="eyebrow">Latar belakang</p>
+      <h2>Mengapa logika digital penting untuk Startup & UMKM?</h2>
+      <p class="prose">{{ setting('event_background') }}</p>
+    </div>
+    <div class="card card-highlight">
+      <h3>Tujuan webinar</h3>
+      <p class="prose">{{ setting('event_objective') }}</p>
+      <h3>Sasaran peserta</h3>
+      <p>{{ setting('audience_text') }}</p>
+    </div>
+  </div>
+</section>
+
+<section id="pembicara" class="section section-alt">
+  <div class="container">
+    <p class="eyebrow">Pembicara</p>
+    <h2>Narasumber & Moderator</h2>
+    <div class="people">
+      {% for prefix in ['speaker', 'moderator'] %}
+      <article class="card person">
+        {% if setting(prefix ~ '_photo') %}
+          <img class="avatar" src="{{ url_for('public.media', name=setting(prefix ~ '_photo')) }}" alt="Foto {{ setting(prefix ~ '_name') }}">
+        {% else %}
+          <div class="avatar avatar-initials" aria-hidden="true">{% for w in setting(prefix ~ '_name').split()[:2] %}{{ w[0] }}{% endfor %}</div>
+        {% endif %}
+        <div>
+          <p class="role-tag">{{ setting(prefix ~ '_role') }}</p>
+          <h3>{{ setting(prefix ~ '_name') }}</h3>
+          <p class="muted prose">{{ setting(prefix ~ '_bio') }}</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="rundown" class="section">
+  <div class="container">
+    <p class="eyebrow">Jadwal acara</p>
+    <h2>Rundown</h2>
+    <ol class="timeline">
+      {% for item in agenda %}
+      <li>
+        <div class="tl-time">{{ item.time }} <span class="muted">{{ tz_label() }}</span></div>
+        <div class="tl-body">
+          <strong>{{ item.session }}</strong>
+          <span class="muted">{{ item.duration }}{% if item.pic %} · {{ item.pic }}{% endif %}</span>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+
+<section id="benefit" class="section section-alt">
+  <div class="container">
+    <p class="eyebrow">Yang Anda dapatkan</p>
+    <h2>Benefit peserta</h2>
+    <div class="benefits">
+      {% for b in benefits %}
+      <article class="card benefit">
+        <span class="benefit-index" aria-hidden="true">0{{ loop.index }}</span>
+        <h3>{{ b.title }}</h3>
+        <p class="muted">{{ b.desc }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="section">
+  <div class="container narrow">
+    <p class="eyebrow">Pertanyaan umum</p>
+    <h2>FAQ</h2>
+    <div class="faq">
+      {% for f in faqs %}
+      <details>
+        <summary>{{ f.q }}</summary>
+        <p>{{ f.a }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="kontak" class="section cta-band">
+  <div class="container cta-inner">
+    <div>
+      <h2>Siap bertumbuh bersama?</h2>
+      <p>Ada pertanyaan? Hubungi {{ setting('contact_name') }} ({{ setting('contact_phone') }}).</p>
+    </div>
+    <div class="cta-actions">
+      {% if reg_open %}<a class="btn btn-accent btn-lg" href="{{ url_for('public.register') }}">Daftar Sekarang</a>{% endif %}
+      <a class="btn btn-ghost btn-lg" href="{{ wa_me_link(setting('contact_phone')) }}" target="_blank" rel="noopener">Chat WhatsApp</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

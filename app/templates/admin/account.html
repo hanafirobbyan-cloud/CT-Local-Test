@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Akun{% endblock %}
+{% block heading %}Akun{% endblock %}
+{% block content %}
+<section class="panel narrow-panel">
+  <h2>Ganti kata sandi</h2>
+  <p class="muted">Login terakhir: {{ g.admin.last_login_at|local }} {{ tz_label() }}. Admin baru dibuat lewat CLI: <code>flask create-admin &lt;username&gt;</code>.</p>
+  <form method="post" class="form">
+    {{ m.csrf() }}
+    <div class="field"><label for="current_password">Kata sandi saat ini</label><input id="current_password" name="current_password" type="password" required autocomplete="current-password"></div>
+    <div class="field"><label for="new_password">Kata sandi baru (min. 12 karakter)</label><input id="new_password" name="new_password" type="password" minlength="12" required autocomplete="new-password"></div>
+    <div class="field"><label for="confirm_password">Ulangi kata sandi baru</label><input id="confirm_password" name="confirm_password" type="password" minlength="12" required autocomplete="new-password"></div>
+    <button class="btn btn-primary" type="submit">Simpan</button>
+  </form>
+</section>
+{% endblock %}

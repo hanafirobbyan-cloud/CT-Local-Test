@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Kebijakan Privasi — {{ setting('event_title') }}{% endblock %}
+{% block content %}
+<section class="section section-tight">
+  <div class="container narrow">
+    <p class="eyebrow">Versi {{ setting('consent_version') }}</p>
+    <h1>Kebijakan Privasi</h1>
+    <div class="card prose">{{ setting('privacy_text') }}</div>
+    <p class="muted">Kontak: {{ setting('contact_name') }} ({{ setting('contact_phone') }}){% if setting('organizer_name') %} · {{ setting('organizer_name') }}{% endif %}</p>
+  </div>
+</section>
+{% endblock %}

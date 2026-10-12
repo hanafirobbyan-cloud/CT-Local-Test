@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Cek Pendaftaran — {{ setting('event_title') }}{% endblock %}
+{% block content %}
+<section class="section section-tight">
+  <div class="container narrow">
+    <p class="eyebrow">Sudah mendaftar?</p>
+    <h1>Cek pendaftaran</h1>
+    {% if sent %}
+      <div class="alert alert-success" role="status">Jika data Anda terdaftar, tautan halaman peserta telah dikirim ulang ke WhatsApp/email yang terdaftar. Belum menerima? Hubungi {{ setting('contact_name') }} ({{ setting('contact_phone') }}).</div>
+    {% endif %}
+    <form method="post" class="card form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="identifier">Email atau nomor WhatsApp yang didaftarkan</label>
+        <input id="identifier" name="identifier" required maxlength="254" autocomplete="email">
+      </div>
+      <button class="btn btn-primary" type="submit">Kirim ulang konfirmasi</button>
+      <p class="hint">Demi privasi, data pendaftaran tidak ditampilkan di sini; konfirmasi hanya dikirim ke kontak yang terdaftar.</p>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}{{ p.full_name }}{% endblock %}
+{% block heading %}{{ p.full_name }}{% endblock %}
+{% macro action(name, label, cls='btn-ghost', confirm=None) %}
+<form method="post" action="{{ url_for('admin.participant_action', pid=p.id) }}" class="inline">
+  {{ m.csrf() }}<input type="hidden" name="action" value="{{ name }}">
+  <button class="btn {{ cls }} btn-sm" type="submit" {% if confirm %}data-confirm="{{ confirm }}"{% endif %}>{{ label }}</button>
+</form>
+{% endmacro %}
+{% block content %}
+<p><a href="{{ url_for('admin.participants') }}">← Daftar peserta</a></p>
+<div class="grid-2">
+  <section class="panel">
+    <h2>Ringkasan</h2>
+    <dl class="kv">
+      <dt>Status</dt><dd>{{ 'Terdaftar' if p.status == 'registered' else 'Dibatalkan' }}</dd>
+      <dt>Terdaftar</dt><dd>{{ p.created_at|local }} {{ tz_label() }}</dd>
+      <dt>Izin WhatsApp</dt><dd>{% if p.wa_opted_out_at %}Berhenti ({{ p.wa_opted_out_at|local }}){% elif p.wa_consent %}Ya ({{ p.wa_consent_at|local }}){% else %}Tidak{% endif %}</dd>
+      <dt>Persetujuan privasi</dt><dd>{{ p.privacy_consent_at|local }} · versi {{ p.consent_version }}</dd>
+      <dt>Kehadiran</dt><dd>{% if p.attended %}Hadir ({{ p.attendance_method }}{% if p.attendance_minutes is not none %}, {{ p.attendance_minutes }} menit{% endif %}){% else %}Belum{% endif %}</dd>
+      <dt>Sertifikat</dt><dd>{% if p.certificate %}<code>{{ p.certificate.number }}</code>{% if p.certificate.revoked_at %} — dicabut: {{ p.certificate.revoke_reason }}{% else %} · <a href="{{ url_for('admin.certificate_file', cid=p.certificate.id) }}" target="_blank">lihat PDF</a>{% endif %}{% else %}Belum terbit{% endif %}</dd>
+      <dt>Halaman peserta</dt><dd><button class="btn btn-link" type="button" data-copy="{{ participant_url }}">Salin tautan</button></dd>
+      <dt>ID publik</dt><dd><code>{{ p.public_id }}</code></dd>
+    </dl>
+    <h3>Aksi</h3>
+    <div class="btn-row">
+      {% if p.attended %}{{ action('unattend', 'Batalkan hadir', confirm='Batalkan status hadir? Sertifikat aktif akan dicabut.') }}{% else %}{{ action('attend', 'Tandai hadir', 'btn-primary') }}{% endif %}
+      {{ action('resend_confirmation', 'Kirim ulang konfirmasi') }}
+      {% if zoom_published %}{{ action('send_zoom', 'Kirim link Zoom') }}{% endif %}
+      {% if p.attended and (not p.certificate or p.certificate.revoked_at) %}{{ action('issue_cert', 'Terbitkan sertifikat') }}{% endif %}
+      {% if p.certificate and not p.certificate.revoked_at %}
+        {{ action('send_cert', 'Kirim sertifikat') }}
+        {{ action('regenerate_cert', 'Buat ulang PDF') }}
+        {{ action('revoke_cert', 'Cabut sertifikat', 'btn-danger', 'Cabut sertifikat ini?') }}
+      {% endif %}
+      {% if p.status == 'registered' %}{{ action('cancel', 'Batalkan pendaftaran', 'btn-ghost', 'Batalkan pendaftaran peserta ini?') }}{% else %}{{ action('reactivate', 'Aktifkan kembali') }}{% endif %}
+      {{ action('delete', 'Hapus permanen', 'btn-danger', 'Hapus permanen seluruh data peserta ini? Tindakan tidak dapat dibatalkan.') }}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Ubah data</h2>
+    <form method="post" action="{{ url_for('admin.participant_edit', pid=p.id) }}" class="form">
+      {{ m.csrf() }}
+      <div class="field"><label for="full_name">Nama lengkap</label><input id="full_name" name="full_name" value="{{ p.full_name }}" required></div>
+      <div class="field-row">
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="{{ p.email }}" required></div>
+        <div class="field"><label for="phone">WhatsApp</label><input id="phone" name="phone" value="+{{ p.phone }}" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="category">Kategori</label><select id="category" name="category">{% for k, v in categories.items() %}<option value="{{ k }}" {% if p.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="institution">Institusi</label><input id="institution" name="institution" value="{{ p.institution }}" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="student_id">NIM</label><input id="student_id" name="student_id" value="{{ p.student_id or '' }}"></div>
+        <div class="field"><label for="study_program">Program studi</label><input id="study_program" name="study_program" value="{{ p.study_program or '' }}"></div>
+      </div>
+      <div class="field"><label for="city">Kota</label><input id="city" name="city" value="{{ p.city or '' }}"></div>
+      <input type="hidden" name="wa_consent" value="{{ '1' if p.wa_consent else '' }}">
+      <button class="btn btn-primary" type="submit">Simpan perubahan</button>
+    </form>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Riwayat pesan</h2>
+  <div class="table-wrap"><table class="table compact">
+    <thead><tr><th>Waktu</th><th>Jenis</th><th>Kanal</th><th>Status</th><th>Percobaan</th><th>Keterangan</th><th></th></tr></thead>
+    <tbody>
+    {% for msg in msgs %}
+      <tr><td class="small">{{ msg.created_at|local }}</td><td>{{ purpose_labels.get(msg.purpose, msg.purpose) }}</td><td>{{ msg.channel }}</td>
+        <td>{{ m.status_badge(msg.status, status_labels) }}</td><td class="num">{{ msg.attempts }}</td><td class="small">{{ msg.last_error or '' }}</td>
+        <td>{% if msg.status in ('failed', 'cancelled', 'skipped') %}<form method="post" action="{{ url_for('admin.message_retry', mid=msg.id) }}">{{ m.csrf() }}<button class="btn btn-link" type="submit">Ulangi</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="7" class="muted">Belum ada pesan.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

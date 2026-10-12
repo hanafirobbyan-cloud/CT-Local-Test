@@ -1,0 +1,75 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Pesan & Notifikasi{% endblock %}
+{% block heading %}Pesan & Notifikasi{% endblock %}
+{% block content %}
+<div class="status-strip">
+  <div class="status-item {{ 'ok' if wa_ready else 'bad' }}">WhatsApp: <strong>{{ wa_name }}</strong> {{ '✓ siap' if wa_ready else '✗ belum siap — pesan WA tetap antre' }}</div>
+  <div class="status-item {{ 'ok' if email_ready else 'neutral' }}">Email: {{ '✓ siap' if email_ready else 'tidak aktif' }}</div>
+  <div class="status-item {{ 'ok' if heartbeat_age is not none and heartbeat_age < 120 else 'bad' }}">Worker: {{ '✓ aktif' if heartbeat_age is not none and heartbeat_age < 120 else '✗ tidak aktif — jalankan `flask worker`' }}</div>
+</div>
+{% if wa_name == 'console' %}<div class="alert alert-warning">Provider <strong>console</strong> hanya menulis pesan ke log (mode pengembangan). Pesan TIDAK benar-benar dikirim ke WhatsApp.</div>{% endif %}
+
+<div class="btn-row">
+  <form method="post" action="{{ url_for('admin.message_process_now') }}">{{ m.csrf() }}<button class="btn btn-primary" type="submit">Proses antrean sekarang</button></form>
+  <form method="post" action="{{ url_for('admin.message_retry_all') }}">{{ m.csrf() }}<button class="btn btn-ghost" type="submit" data-confirm="Jadwalkan ulang semua pesan gagal?">Ulangi semua yang gagal ({{ stats.by_status.get('failed', 0) }})</button></form>
+  <a class="btn btn-ghost" href="{{ url_for('admin.message_templates') }}">Edit template pesan</a>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Jadwalkan pengingat / pengumuman</h2>
+    <form method="post" action="{{ url_for('admin.campaign_create') }}" class="form">
+      {{ m.csrf() }}
+      <div class="field-row">
+        <div class="field"><label for="purpose">Jenis</label><select id="purpose" name="purpose"><option value="reminder">Pengingat acara</option><option value="broadcast">Pengumuman (teks bebas)</option></select></div>
+        <div class="field"><label for="audience">Penerima</label><select id="audience" name="audience"><option value="all">Semua peserta terdaftar</option><option value="attended">Hanya yang hadir</option><option value="not_attended">Yang belum hadir</option></select></div>
+      </div>
+      <div class="field"><label for="name">Nama kampanye</label><input id="name" name="name" maxlength="150" placeholder="mis. Pengingat H-1"></div>
+      <div class="field"><label for="custom_text">Teks pengumuman (untuk jenis Pengumuman)</label><textarea id="custom_text" name="custom_text" rows="3" maxlength="1500"></textarea></div>
+      <div class="field"><label for="scheduled_at">Waktu kirim ({{ tz_label() }}) — kosongkan untuk segera</label><input id="scheduled_at" name="scheduled_at" type="datetime-local"></div>
+      <button class="btn btn-primary" type="submit">Jadwalkan</button>
+      <p class="hint">Link Zoom dikirim dari menu Link Zoom; sertifikat dari menu Sertifikat. Untuk Meta, pengumuman memakai template “{{ config.WA_TEMPLATE_ANNOUNCEMENT }}”.</p>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>Kampanye</h2>
+    <div class="table-wrap"><table class="table compact">
+      <thead><tr><th>Nama</th><th>Jadwal</th><th>Status</th><th>Hasil</th><th></th></tr></thead>
+      <tbody>
+      {% for c in campaigns %}
+        {% set cs = campaign_stats.get(c.id, {}) %}
+        <tr><td>{{ c.name }}<br><span class="small muted">{{ purpose_labels.get(c.purpose) }} · {{ c.created_by }}</span></td>
+          <td class="small">{{ c.scheduled_at|local }}</td>
+          <td><span class="badge badge-{{ 'sent' if c.status == 'done' else c.status }}">{{ {'scheduled': 'Terjadwal', 'done': 'Diproses', 'cancelled': 'Dibatalkan'}.get(c.status, c.status) }}</span></td>
+          <td class="small">{% for s, n in cs.items() %}{{ status_labels.get(s, s) }}: {{ n }}<br>{% endfor %}</td>
+          <td>{% if c.status == 'scheduled' or cs.get('queued') %}<form method="post" action="{{ url_for('admin.campaign_cancel', cid=c.id) }}">{{ m.csrf() }}<button class="btn btn-link" type="submit" data-confirm="Batalkan kampanye ini?">Batalkan</button></form>{% endif %}</td></tr>
+      {% else %}<tr><td colspan="5" class="muted">Belum ada kampanye.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Log pesan</h2>
+  <form class="filters" method="get">
+    <select name="status" aria-label="Status"><option value="">Semua status</option>{% for k, v in status_labels.items() %}<option value="{{ k }}" {% if args.get('status') == k %}selected{% endif %}>{{ v }} ({{ stats.by_status.get(k, 0) }})</option>{% endfor %}</select>
+    <select name="purpose" aria-label="Jenis"><option value="">Semua jenis</option>{% for k, v in purpose_labels.items() %}<option value="{{ k }}" {% if args.get('purpose') == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+    <select name="channel" aria-label="Kanal"><option value="">Semua kanal</option><option value="whatsapp" {% if args.get('channel') == 'whatsapp' %}selected{% endif %}>WhatsApp</option><option value="email" {% if args.get('channel') == 'email' %}selected{% endif %}>Email</option></select>
+    <button class="btn btn-primary" type="submit">Filter</button>
+  </form>
+  <div class="table-wrap"><table class="table compact">
+    <thead><tr><th>#</th><th>Peserta</th><th>Jenis</th><th>Kanal</th><th>Status</th><th>Percobaan</th><th>Update</th><th>Keterangan</th><th></th></tr></thead>
+    <tbody>
+    {% for msg in result['items'] %}
+      <tr><td class="num">{{ msg.id }}</td><td><a href="{{ url_for('admin.participant_detail', pid=msg.participant_id) }}">{{ msg.participant.full_name }}</a></td>
+        <td>{{ purpose_labels.get(msg.purpose, msg.purpose) }}</td><td>{{ msg.channel }}{% if msg.provider %} <span class="muted small">({{ msg.provider }})</span>{% endif %}</td>
+        <td>{{ m.status_badge(msg.status, status_labels) }}</td><td class="num">{{ msg.attempts }}/{{ msg.max_attempts }}</td>
+        <td class="small">{{ msg.updated_at|local }}</td><td class="small">{{ msg.last_error or '' }}</td>
+        <td>{% if msg.status in ('failed', 'cancelled', 'skipped') %}<form method="post" action="{{ url_for('admin.message_retry', mid=msg.id) }}">{{ m.csrf() }}<button class="btn btn-link" type="submit">Ulangi</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="9" class="muted center">Tidak ada pesan.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {{ m.pagination(result, 'admin.messages', args) }}
+</section>
+{% endblock %}

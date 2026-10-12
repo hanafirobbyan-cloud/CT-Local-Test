@@ -1,0 +1,51 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro setting_field(key, values) %}
+  {% set kind = setting_schema[key][0] %}
+  {% set label, help = setting_labels.get(key, (key, '')) %}
+  {% set value = values[key] %}
+  <div class="field field-{{ kind }}">
+  {% if kind == 'bool' %}
+    <label class="check"><input type="checkbox" name="{{ key }}" value="1" {% if value %}checked{% endif %}> <span>{{ label }}</span></label>
+  {% elif kind == 'text' %}
+    <label for="f-{{ key }}">{{ label }}</label>
+    <textarea id="f-{{ key }}" name="{{ key }}" rows="{{ 8 if key in ('faq', 'agenda', 'privacy_text') or key.startswith('msg_') else 4 }}">{{ value }}</textarea>
+  {% elif kind == 'int' %}
+    <label for="f-{{ key }}">{{ label }}</label>
+    <input id="f-{{ key }}" name="{{ key }}" type="number" min="0" value="{{ value }}">
+  {% elif kind == 'datetime' %}
+    <label for="f-{{ key }}">{{ label }} <span class="muted">({{ tz_label() }})</span></label>
+    <input id="f-{{ key }}" name="{{ key }}" type="datetime-local" value="{{ value }}">
+  {% elif kind == 'file' %}
+    <label for="f-{{ key }}">{{ label }}</label>
+    {% if value %}
+      <div class="file-current">
+        {% if key != 'cert_font' %}<img src="{{ url_for('admin.uploaded_file', name=value) }}" alt="" class="thumb">{% else %}<code>{{ value }}</code>{% endif %}
+        <label class="check"><input type="checkbox" name="remove_{{ key }}" value="1"> <span>Hapus</span></label>
+      </div>
+    {% endif %}
+    <input id="f-{{ key }}" name="{{ key }}" type="file" accept="{{ '.ttf' if key == 'cert_font' else 'image/png,image/jpeg' }}">
+  {% else %}
+    <label for="f-{{ key }}">{{ label }}</label>
+    <input id="f-{{ key }}" name="{{ key }}" value="{{ value }}" maxlength="500" {% if key.endswith('_color') %}type="text" pattern="#[0-9A-Fa-f]{6}"{% endif %}>
+  {% endif %}
+  {% if help %}<p class="hint">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro status_badge(status, labels) %}
+  <span class="badge badge-{{ status }}">{{ labels.get(status, status) }}</span>
+{% endmacro %}
+
+{% macro pagination(result, endpoint, args) %}
+  {% if result.pages > 1 %}
+  <nav class="pagination" aria-label="Halaman">
+    {% set params = args.to_dict() if args.to_dict is defined else dict(args) %}
+    {% if result.page > 1 %}{% set _ = params.update({'page': result.page - 1}) %}<a href="{{ url_for(endpoint, **params) }}">‹ Sebelumnya</a>{% endif %}
+    <span>Halaman {{ result.page }} dari {{ result.pages }} · {{ result.total }} data</span>
+    {% if result.page < result.pages %}{% set _ = params.update({'page': result.page + 1}) %}<a href="{{ url_for(endpoint, **params) }}">Berikutnya ›</a>{% endif %}
+  </nav>
+  {% else %}
+  <p class="muted small">{{ result.total }} data</p>
+  {% endif %}
+{% endmacro %}

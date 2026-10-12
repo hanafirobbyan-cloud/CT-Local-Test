@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Audit Log{% endblock %}
+{% block heading %}Audit Log{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <input name="action" value="{{ args.get('action', '') }}" placeholder="Filter aksi, mis. zoom, login, certificate" aria-label="Filter aksi">
+  <button class="btn btn-primary" type="submit">Filter</button>
+</form>
+<div class="table-wrap"><table class="table compact">
+  <thead><tr><th>Waktu ({{ tz_label() }})</th><th>Pelaku</th><th>Aksi</th><th>Target</th><th>Detail</th></tr></thead>
+  <tbody>
+  {% for a in result['items'] %}
+    <tr><td class="small">{{ a.created_at|local('%d/%m/%Y %H:%M:%S') }}</td><td>{{ a.actor }}</td><td><code>{{ a.action }}</code></td>
+      <td class="small">{{ a.target_type or '' }} {{ a.target_id or '' }}</td><td class="small mono">{{ a.details or '' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">Belum ada catatan.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{{ m.pagination(result, 'admin.audit_log', args) }}
+{% endblock %}

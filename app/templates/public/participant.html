@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Halaman Peserta — {{ setting('event_title') }}{% endblock %}
+{% block meta %}<meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">{% endblock %}
+{% block content %}
+<section class="section section-tight">
+  <div class="container narrow">
+    {% if is_new %}
+    <div class="confirm-banner" role="status">
+      <div class="confirm-icon" aria-hidden="true">✓</div>
+      <div>
+        <h1>Pendaftaran berhasil!</h1>
+        <p>Terima kasih, {{ p.full_name }}. Data Anda telah tersimpan.
+        {% if p.can_receive_whatsapp %}Konfirmasi dikirim ke WhatsApp {{ p.masked_phone }}.{% endif %}</p>
+      </div>
+    </div>
+    {% else %}
+    <p class="eyebrow">Halaman peserta</p>
+    <h1>Halo, {{ p.full_name }}</h1>
+    {% endif %}
+
+    <div class="alert alert-info">Simpan (bookmark) halaman ini. Tautan ini bersifat pribadi — jangan dibagikan.</div>
+
+    {% if p.status != 'registered' %}
+    <div class="alert alert-error">Pendaftaran Anda tidak aktif. Hubungi contact person untuk informasi.</div>
+    {% endif %}
+
+    <ol class="steps" aria-label="Status Anda">
+      <li class="done"><span>Terdaftar</span></li>
+      <li class="{{ 'done' if show_zoom else '' }}"><span>Link Zoom</span></li>
+      <li class="{{ 'done' if p.attended else '' }}"><span>Hadir</span></li>
+      <li class="{{ 'done' if cert else '' }}"><span>E-certificate</span></li>
+    </ol>
+
+    <div class="card">
+      <h2>Detail acara</h2>
+      <dl class="kv">
+        <dt>Webinar</dt><dd>{{ setting('event_title') }}</dd>
+        <dt>Tanggal</dt><dd>{{ event_start|indo_date }}</dd>
+        <dt>Waktu</dt><dd>{{ setting('event_time_label') }}</dd>
+        <dt>Platform</dt><dd>{{ setting('event_platform') }}</dd>
+      </dl>
+    </div>
+
+    <div class="card {% if show_zoom %}card-highlight{% endif %}">
+      <h2>Link Zoom</h2>
+      {% if show_zoom %}
+        <p><a class="btn btn-accent btn-lg btn-block" href="{{ setting('zoom_url') }}" target="_blank" rel="noopener noreferrer">Gabung Zoom Meeting</a></p>
+        <dl class="kv">
+          {% if setting('zoom_meeting_id') %}<dt>Meeting ID</dt><dd><code>{{ setting('zoom_meeting_id') }}</code></dd>{% endif %}
+          {% if setting('zoom_passcode') %}<dt>Passcode</dt><dd><code>{{ setting('zoom_passcode') }}</code></dd>{% endif %}
+        </dl>
+        <p class="hint">Gunakan nama dan email yang sama dengan pendaftaran saat bergabung agar kehadiran tercatat.</p>
+      {% else %}
+        <p class="muted">Link Zoom akan tersedia di halaman ini dan dikirim ke WhatsApp/email Anda menjelang acara dimulai.</p>
+      {% endif %}
+    </div>
+
+    {% if p.status == 'registered' %}
+    <div class="card">
+      <h2>Presensi</h2>
+      {% if p.attended %}
+        <p class="text-success"><strong>Kehadiran Anda telah tercatat.</strong></p>
+      {% elif attendance_open %}
+        <form method="post" action="{{ url_for('public.submit_attendance', token=p.access_token) }}" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="code" class="sr-only">Kode presensi</label>
+          <input id="code" name="code" required maxlength="40" placeholder="Masukkan kode presensi" autocomplete="off">
+          <button class="btn btn-primary" type="submit">Kirim</button>
+        </form>
+        <p class="hint">Kode presensi diumumkan oleh moderator saat acara berlangsung.</p>
+      {% else %}
+        <p class="muted">Presensi dibuka saat acara berlangsung. Kehadiran juga diverifikasi dari laporan peserta Zoom.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h2>E-certificate</h2>
+      {% if cert %}
+        <p>Nomor: <code>{{ cert.number }}</code></p>
+        <p class="btn-row">
+          <a class="btn btn-primary" href="{{ url_for('public.certificate_download', token=cert.download_token) }}" target="_blank" rel="noopener">Lihat sertifikat</a>
+          <a class="btn btn-ghost" href="{{ url_for('public.certificate_download', token=cert.download_token, unduh=1) }}">Unduh PDF</a>
+        </p>
+      {% else %}
+        <p class="muted">E-certificate diterbitkan untuk peserta yang hadir dan dikirim setelah webinar selesai.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Data pendaftaran</h2>
+      <dl class="kv">
+        <dt>Nama</dt><dd>{{ p.full_name }}</dd>
+        <dt>Email</dt><dd>{{ p.masked_email }}</dd>
+        <dt>WhatsApp</dt><dd>{{ p.masked_phone }}</dd>
+        <dt>Kategori</dt><dd>{{ p.category_label }}</dd>
+        <dt>Institusi</dt><dd>{{ p.institution }}</dd>
+        {% if p.student_id %}<dt>NIM</dt><dd>{{ p.student_id }}</dd>{% endif %}
+      </dl>
+      <p class="hint">Ada data yang salah (mis. ejaan nama untuk sertifikat)? Hubungi {{ setting('contact_name') }} ({{ setting('contact_phone') }}).</p>
+      <form method="post" action="{{ url_for('public.whatsapp_preference', token=p.access_token) }}" class="mt">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if p.can_receive_whatsapp %}
+          <input type="hidden" name="action" value="stop">
+          <button class="btn btn-link" type="submit" data-confirm="Berhenti menerima pesan WhatsApp dari webinar ini?">Berhenti menerima pesan WhatsApp</button>
+        {% elif p.status == 'registered' %}
+          <input type="hidden" name="action" value="start">
+          <button class="btn btn-ghost btn-sm" type="submit">Aktifkan notifikasi WhatsApp</button>
+          <span class="hint">Dengan menekan tombol ini Anda menyetujui menerima informasi webinar via WhatsApp.</span>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,57 @@
+# Jalankan: docker compose up -d --build
+# Lalu buat admin: docker compose exec web flask create-admin admin
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: webinar
+      POSTGRES_USER: webinar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?isi POSTGRES_PASSWORD di .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webinar"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://webinar:${POSTGRES_PASSWORD}@db:5432/webinar
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+      TRUST_PROXY: "1"
+    ports:
+      - "8000:8000"
+    volumes:
+      - appdata:/app/instance
+      - backups:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://webinar:${POSTGRES_PASSWORD}@db:5432/webinar
+      RATELIMIT_STORAGE_URI: redis://redis:6379/0
+    command: ["sh", "-c", "flask db upgrade && flask worker"]
+    volumes:
+      - appdata:/app/instance
+      - backups:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  appdata:
+  backups:

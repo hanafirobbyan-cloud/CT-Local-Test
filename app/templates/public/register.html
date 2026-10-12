@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Pendaftaran — {{ setting('event_title') }}{% endblock %}
+{% macro err(name) %}{% if errors.get(name) %}<p class="field-error" id="{{ name }}-error">{{ errors[name] }}</p>{% endif %}{% endmacro %}
+{% macro inv(name) %}{% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}{% endmacro %}
+{% block content %}
+<section class="section page-head">
+  <div class="container narrow">
+    <p class="eyebrow">Formulir pendaftaran</p>
+    <h1>{{ setting('event_title') }}</h1>
+    <p class="muted">{{ event_start|indo_date }} · {{ setting('event_time_label') }} · {{ setting('event_platform') }}</p>
+  </div>
+</section>
+
+<section class="section section-tight">
+  <div class="container narrow">
+    {% if not reg_open %}
+      <div class="card"><h2>Pendaftaran ditutup</h2><p>{{ closed_reason }}</p>
+        <p>Hubungi {{ setting('contact_name') }} ({{ setting('contact_phone') }}) untuk informasi lebih lanjut.</p></div>
+    {% else %}
+    {% if errors %}<div class="alert alert-error" role="alert">Periksa kembali isian yang ditandai.</div>{% endif %}
+    <form method="post" action="{{ url_for('public.register') }}" class="card form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+      <fieldset>
+        <legend>Data diri</legend>
+        <div class="field">
+          <label for="full_name">Nama lengkap <span class="req">*</span></label>
+          <input id="full_name" name="full_name" required maxlength="120" autocomplete="name" value="{{ form.get('full_name', '') }}" {{ inv('full_name') }}>
+          <p class="hint">Ditulis sesuai yang akan tercetak di e-certificate.</p>
+          {{ err('full_name') }}
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="email">Email <span class="req">*</span></label>
+            <input id="email" name="email" type="email" required maxlength="254" autocomplete="email" value="{{ form.get('email', '') }}" {{ inv('email') }}>
+            {{ err('email') }}
+          </div>
+          <div class="field">
+            <label for="phone">Nomor WhatsApp <span class="req">*</span></label>
+            <input id="phone" name="phone" type="tel" inputmode="tel" required maxlength="25" autocomplete="tel" placeholder="08xxxxxxxxxx" value="{{ form.get('phone', '') }}" {{ inv('phone') }}>
+            {{ err('phone') }}
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="category">Kategori peserta <span class="req">*</span></label>
+            <select id="category" name="category" required data-category-select {{ inv('category') }}>
+              <option value="">— Pilih —</option>
+              {% for key, label in categories.items() %}<option value="{{ key }}" {% if form.get('category') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {{ err('category') }}
+          </div>
+          <div class="field">
+            <label for="institution">Sekolah / kampus / usaha / instansi <span class="req">*</span></label>
+            <input id="institution" name="institution" required maxlength="150" autocomplete="organization" value="{{ form.get('institution', '') }}" {{ inv('institution') }}>
+            {{ err('institution') }}
+          </div>
+        </div>
+        <div class="field-row" data-student-fields>
+          <div class="field">
+            <label for="student_id">NIM <span class="req">*</span> <span class="muted">(khusus mahasiswa)</span></label>
+            <input id="student_id" name="student_id" maxlength="30" value="{{ form.get('student_id', '') }}" {{ inv('student_id') }}>
+            {{ err('student_id') }}
+          </div>
+          <div class="field">
+            <label for="study_program">Program studi <span class="req">*</span> <span class="muted">(khusus mahasiswa)</span></label>
+            <input id="study_program" name="study_program" maxlength="120" value="{{ form.get('study_program', '') }}" {{ inv('study_program') }}>
+            {{ err('study_program') }}
+          </div>
+        </div>
+        <p class="hint" data-student-fields>NIM dan program studi diperlukan untuk pencatatan poin SKEM.</p>
+        <div class="field-row">
+          <div class="field">
+            <label for="city">Kota domisili <span class="muted">(opsional)</span></label>
+            <input id="city" name="city" maxlength="80" autocomplete="address-level2" value="{{ form.get('city', '') }}">
+          </div>
+          <div class="field">
+            <label for="info_source">Tahu webinar ini dari <span class="muted">(opsional)</span></label>
+            <select id="info_source" name="info_source">
+              <option value="">— Pilih —</option>
+              {% for key, label in info_sources.items() %}<option value="{{ key }}" {% if form.get('info_source') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Persetujuan</legend>
+        <label class="check">
+          <input type="checkbox" name="wa_consent" value="1" {% if form.get('wa_consent') %}checked{% endif %}>
+          <span>Saya bersedia menerima informasi webinar ini (konfirmasi, link Zoom, pengingat, dan e-certificate) melalui <strong>WhatsApp</strong> di nomor di atas. Saya dapat berhenti kapan saja dengan membalas <strong>BERHENTI</strong>.</span>
+        </label>
+        <p class="hint">Opsional. Tanpa persetujuan ini, informasi tetap tersedia di halaman peserta Anda dan dikirim lewat email bila tersedia.</p>
+        <label class="check">
+          <input type="checkbox" name="privacy_consent" value="1" required {% if form.get('privacy_consent') %}checked{% endif %} {{ inv('privacy_consent') }}>
+          <span>Saya menyetujui pengolahan data pribadi sesuai <a href="{{ url_for('public.privacy') }}" target="_blank">Kebijakan Privasi</a>. <span class="req">*</span></span>
+        </label>
+        {{ err('privacy_consent') }}
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-block">Kirim Pendaftaran</button>
+      <p class="hint center">Sudah pernah mendaftar? <a href="{{ url_for('public.check_registration') }}">Cek pendaftaran</a>.</p>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

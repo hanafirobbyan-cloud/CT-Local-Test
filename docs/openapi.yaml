@@ -1,0 +1,148 @@
+openapi: 3.0.3
+info:
+  title: Webinar Registration API
+  version: "1.0.0"
+  description: API pendaftaran & administrasi webinar "Penerapan Logika Digital untuk Membangun Startup dan UMKM".
+  license: {name: MIT}
+servers:
+  - url: https://domain-anda/api/v1
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: {type: string}
+        message: {type: string}
+        fields: {type: object, additionalProperties: {type: string}}
+    RegistrationInput:
+      type: object
+      required: [full_name, email, phone, category, institution, privacy_consent]
+      properties:
+        full_name: {type: string, minLength: 3, maxLength: 120}
+        email: {type: string, format: email}
+        phone: {type: string, example: "081234567890"}
+        category: {type: string, enum: [pelajar, mahasiswa, startup, umkm, lainnya]}
+        institution: {type: string, maxLength: 150}
+        student_id: {type: string, nullable: true, description: Wajib untuk mahasiswa}
+        study_program: {type: string, nullable: true, description: Wajib untuk mahasiswa}
+        city: {type: string, nullable: true}
+        info_source: {type: string, enum: [instagram, whatsapp, kampus, poster, lainnya], nullable: true}
+        privacy_consent: {type: boolean, description: Harus true}
+        wa_consent: {type: boolean, description: Izin eksplisit menerima WhatsApp}
+    Participant:
+      type: object
+      properties:
+        id: {type: string}
+        full_name: {type: string}
+        email: {type: string}
+        phone: {type: string}
+        category: {type: string}
+        institution: {type: string}
+        student_id: {type: string, nullable: true}
+        study_program: {type: string, nullable: true}
+        city: {type: string, nullable: true}
+        status: {type: string, enum: [registered, cancelled]}
+        wa_consent: {type: boolean}
+        wa_opted_out: {type: boolean}
+        attended: {type: boolean}
+        attendance_method: {type: string, nullable: true}
+        attendance_minutes: {type: integer, nullable: true}
+        certificate_number: {type: string, nullable: true}
+        registered_at: {type: string, format: date-time}
+paths:
+  /event:
+    get:
+      summary: Detail acara (publik, tanpa link Zoom)
+      responses:
+        "200": {description: OK}
+  /registrations:
+    post:
+      summary: Daftarkan peserta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/RegistrationInput"}
+      responses:
+        "201":
+          description: Terdaftar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string}
+                  status: {type: string}
+                  participant_url: {type: string, description: Tautan pribadi peserta (rahasia)}
+        "403": {description: Pendaftaran ditutup, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+        "409": {description: Duplikat, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+        "422": {description: Validasi gagal, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+        "429": {description: Rate limit}
+  /admin/stats:
+    get:
+      summary: Statistik
+      security: [{bearer: []}]
+      responses:
+        "200": {description: OK}
+        "401": {description: Token tidak valid}
+  /admin/participants:
+    get:
+      summary: Daftar peserta
+      security: [{bearer: []}]
+      parameters:
+        - {name: q, in: query, schema: {type: string}}
+        - {name: category, in: query, schema: {type: string}}
+        - {name: attended, in: query, schema: {type: string, enum: ["true", "false"]}}
+        - {name: status, in: query, schema: {type: string, enum: [registered, cancelled]}}
+        - {name: page, in: query, schema: {type: integer, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, default: 50, maximum: 200}}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: {type: integer}
+                  page: {type: integer}
+                  per_page: {type: integer}
+                  items: {type: array, items: {$ref: "#/components/schemas/Participant"}}
+  /admin/participants/{id}:
+    get:
+      summary: Detail peserta
+      security: [{bearer: []}]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        "200": {description: OK, content: {application/json: {schema: {$ref: "#/components/schemas/Participant"}}}}
+        "404": {description: Tidak ditemukan}
+  /admin/participants/{id}/attendance:
+    post:
+      summary: Tandai / batalkan kehadiran
+      security: [{bearer: []}]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attended]
+              properties:
+                attended: {type: boolean}
+                minutes: {type: integer}
+      responses:
+        "200": {description: OK, content: {application/json: {schema: {$ref: "#/components/schemas/Participant"}}}}
+        "422": {description: Validasi gagal}
+  /admin/messages:
+    get:
+      summary: Log pesan
+      security: [{bearer: []}]
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [queued, sending, sent, delivered, read, failed, cancelled, skipped]}}
+        - {name: purpose, in: query, schema: {type: string, enum: [registration, zoom_link, reminder, certificate, broadcast]}}
+        - {name: limit, in: query, schema: {type: integer, default: 100, maximum: 500}}
+      responses:
+        "200": {description: OK}

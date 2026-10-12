@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Sertifikat{% endblock %}
+{% block heading %}E-Sertifikat{% endblock %}
+{% macro cert_action(name, label, cls='btn-ghost', confirm=None) %}
+<form method="post" action="{{ url_for('admin.certificate_action') }}" class="inline">{{ m.csrf() }}<input type="hidden" name="action" value="{{ name }}">
+  <button class="btn {{ cls }}" type="submit" {% if confirm %}data-confirm="{{ confirm }}"{% endif %}>{{ label }}</button></form>
+{% endmacro %}
+{% block content %}
+<div class="stats">
+  <div class="stat"><span class="stat-label">Berhak (hadir)</span><strong class="stat-value">{{ stats.eligible }}</strong></div>
+  <div class="stat"><span class="stat-label">Terbit</span><strong class="stat-value">{{ stats.issued }}</strong></div>
+  <div class="stat"><span class="stat-label">Terkirim</span><strong class="stat-value">{{ stats.sent }}</strong></div>
+  <div class="stat"><span class="stat-label">Dicabut</span><strong class="stat-value">{{ stats.revoked }}</strong></div>
+</div>
+
+<div class="alert alert-info">
+  {% if values.cert_auto_send %}
+  Pengiriman otomatis <strong>aktif</strong>: mulai {{ auto_at|local }} {{ tz_label() }}, setiap peserta yang hadir akan diterbitkan sertifikat dan dikirimi tautannya (termasuk yang kehadirannya diverifikasi belakangan). Butuh worker aktif.
+  {% else %}Pengiriman otomatis <strong>nonaktif</strong>. Gunakan tombol di bawah untuk menerbitkan & mengirim secara manual.{% endif %}
+  Peserta yang tidak hadir tidak akan pernah menerima sertifikat.
+</div>
+
+<div class="btn-row">
+  <a class="btn btn-ghost" href="{{ url_for('admin.certificate_preview') }}" target="_blank">Pratinjau template (PDF)</a>
+  {{ cert_action('issue_all', 'Terbitkan untuk semua yang hadir') }}
+  {{ cert_action('regenerate', 'Buat ulang semua PDF', confirm='Buat ulang seluruh file sertifikat dengan template terbaru?') }}
+  {{ cert_action('send_all', 'Terbitkan & kirim ke semua yang hadir', 'btn-accent', 'Kirim tautan sertifikat ke semua peserta yang hadir?') }}
+</div>
+
+<div class="grid-2">
+  <form method="post" enctype="multipart/form-data" class="panel form">
+    <h2>Template sertifikat</h2>
+    {{ m.csrf() }}
+    {% for key in keys %}{{ m.setting_field(key, values) }}{% endfor %}
+    <p class="hint">Logo penyelenggara diatur di menu Konten & Pengaturan. Setelah menyimpan, klik Pratinjau untuk melihat hasil.</p>
+    <button class="btn btn-primary" type="submit">Simpan template</button>
+  </form>
+  <section class="panel">
+    <h2>Sertifikat terbit</h2>
+    <div class="table-wrap"><table class="table compact">
+      <thead><tr><th>Nomor</th><th>Peserta</th><th>Terbit</th><th></th></tr></thead>
+      <tbody>
+      {% for c in result['items'] %}
+        <tr><td><code>{{ c.number }}</code>{% if c.revoked_at %} <span class="badge badge-failed">dicabut</span>{% endif %}</td>
+          <td><a href="{{ url_for('admin.participant_detail', pid=c.participant_id) }}">{{ c.participant.full_name }}</a></td>
+          <td class="small">{{ c.issued_at|local }}</td>
+          <td><a href="{{ url_for('admin.certificate_file', cid=c.id) }}" target="_blank">PDF</a></td></tr>
+      {% else %}<tr><td colspan="4" class="muted">Belum ada sertifikat.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    {{ m.pagination(result, 'admin.certificates_page', request.args) }}
+  </section>
+</div>
+{% endblock %}

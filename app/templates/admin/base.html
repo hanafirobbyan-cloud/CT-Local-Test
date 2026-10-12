@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Admin{% endblock %} — Admin Webinar</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body class="admin">
+{% set nav = [
+  ('admin.dashboard', 'Dashboard'), ('admin.participants', 'Peserta'), ('admin.attendance_page', 'Presensi'),
+  ('admin.zoom_page', 'Link Zoom'), ('admin.messages', 'Pesan & Notifikasi'), ('admin.certificates_page', 'Sertifikat'),
+  ('admin.settings_page', 'Konten & Pengaturan'), ('admin.audit_log', 'Audit Log'), ('admin.account', 'Akun')] %}
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-nav">
+    <a class="brand" href="{{ url_for('admin.dashboard') }}"><span class="brand-mark" aria-hidden="true">1/0</span><span class="brand-text">Admin<strong>Webinar</strong></span></a>
+    <nav aria-label="Menu admin">
+      {% for endpoint, label in nav %}
+        <a href="{{ url_for(endpoint) }}" class="{{ 'active' if request.endpoint == endpoint or request.endpoint.startswith(endpoint ~ '_') }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">
+      <a href="{{ url_for('public.index') }}" target="_blank" rel="noopener">Lihat situs ↗</a>
+      <form method="post" action="{{ url_for('admin.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-link" type="submit">Keluar ({{ g.admin.username }})</button>
+      </form>
+    </div>
+  </aside>
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="admin-nav" data-nav-toggle><span class="sr-only">Menu</span><span class="bars" aria-hidden="true"></span></button>
+      <h1>{% block heading %}{% endblock %}</h1>
+      {% if app_env != 'production' %}<span class="badge badge-warning">{{ app_env }}</span>{% endif %}
+    </header>
+    <div class="admin-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}<div class="alert alert-{{ category }}" role="status">{{ message }}</div>{% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

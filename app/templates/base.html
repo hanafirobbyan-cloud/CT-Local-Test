@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ setting('event_title') }}{% endblock %}</title>
+  <meta name="description" content="Webinar {{ setting('event_title') }} — {{ setting('event_theme') }}. {{ setting('event_time_label') }}, {{ setting('event_platform') }}.">
+  <meta name="theme-color" content="#0B1B3F">
+  {% block meta %}{% endblock %}
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body class="{% block body_class %}public{% endblock %}">
+<a class="skip-link" href="#main">Langsung ke konten</a>
+{% block header %}
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{{ url_for('public.index') }}">
+      {% if setting('organizer_logo') %}<img src="{{ url_for('public.media', name=setting('organizer_logo')) }}" alt="" class="brand-logo">{% else %}<span class="brand-mark" aria-hidden="true">1/0</span>{% endif %}
+      <span class="brand-text">Webinar<strong>Logika Digital</strong></span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+      <span class="sr-only">Menu</span><span class="bars" aria-hidden="true"></span>
+    </button>
+    <nav id="site-nav" class="site-nav" aria-label="Navigasi utama">
+      <a href="{{ url_for('public.index') }}#tentang">Tentang</a>
+      <a href="{{ url_for('public.index') }}#pembicara">Pembicara</a>
+      <a href="{{ url_for('public.index') }}#rundown">Rundown</a>
+      <a href="{{ url_for('public.index') }}#benefit">Benefit</a>
+      <a href="{{ url_for('public.index') }}#faq">FAQ</a>
+      <a href="{{ url_for('public.check_registration') }}">Cek Pendaftaran</a>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('public.register') }}">Daftar</a>
+    </nav>
+  </div>
+</header>
+{% endblock %}
+
+<main id="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container flashes">
+      {% for category, message in messages %}<div class="alert alert-{{ category }}" role="status">{{ message }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+{% block footer %}
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <p class="footer-title">{{ setting('event_title') }}</p>
+      <p class="muted">{{ setting('event_theme') }}{% if setting('organizer_name') %} · Diselenggarakan oleh {{ setting('organizer_name') }}{% endif %}</p>
+    </div>
+    <div>
+      <p class="footer-title">Contact person</p>
+      <p><a href="{{ wa_me_link(setting('contact_phone')) }}" rel="noopener" target="_blank">{{ setting('contact_name') }} ({{ setting('contact_phone') }})</a></p>
+    </div>
+    <div>
+      <p class="footer-title">Tautan</p>
+      <p><a href="{{ url_for('public.privacy') }}">Kebijakan Privasi</a> · <a href="{{ url_for('public.check_registration') }}">Cek Pendaftaran</a></p>
+    </div>
+  </div>
+  <div class="container footer-bottom muted">Sistem pendaftaran sumber terbuka (lisensi MIT).</div>
+</footer>
+{% endblock %}
+</body>
+</html>

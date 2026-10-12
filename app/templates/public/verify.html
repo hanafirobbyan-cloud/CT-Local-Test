@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Verifikasi Sertifikat{% endblock %}
+{% block meta %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="section section-tight">
+  <div class="container narrow">
+    <p class="eyebrow">Verifikasi e-certificate</p>
+    {% if cert and not cert.revoked_at %}
+      <div class="confirm-banner"><div class="confirm-icon" aria-hidden="true">✓</div>
+        <div><h1>Sertifikat valid</h1><p>Sertifikat ini diterbitkan oleh sistem resmi webinar.</p></div></div>
+      <div class="card"><dl class="kv">
+        <dt>Nomor</dt><dd><code>{{ cert.number }}</code></dd>
+        <dt>Nama</dt><dd>{{ cert.participant.full_name }}</dd>
+        <dt>Webinar</dt><dd>{{ setting('event_title') }}</dd>
+        <dt>Tanggal acara</dt><dd>{{ event_start|indo_date }}</dd>
+        <dt>Diterbitkan</dt><dd>{{ cert.issued_at|indo_date(false) }}</dd>
+        {% if setting('organizer_name') %}<dt>Penyelenggara</dt><dd>{{ setting('organizer_name') }}</dd>{% endif %}
+      </dl></div>
+    {% elif cert %}
+      <h1>Sertifikat dicabut</h1>
+      <div class="alert alert-error">Sertifikat dengan nomor {{ cert.number }} sudah tidak berlaku.</div>
+    {% else %}
+      <h1>Sertifikat tidak ditemukan</h1>
+      <div class="alert alert-error">Kode verifikasi tidak dikenali. Pastikan Anda memindai QR code pada sertifikat asli.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

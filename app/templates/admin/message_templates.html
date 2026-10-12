@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Template Pesan{% endblock %}
+{% block heading %}Template Pesan{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.messages') }}">← Pesan & Notifikasi</a></p>
+<div class="alert alert-info">
+  Teks di bawah dipakai untuk email dan provider WhatsApp berbasis teks (Fonnte/console).
+  Untuk <strong>WhatsApp Business Platform (Meta)</strong>, isi pesan mengikuti template yang disetujui Meta; sistem hanya mengirim parameternya (lihat <code>docs/WHATSAPP.md</code>).
+  {% if not email_ready %}Email belum aktif — isi SMTP di .env untuk mengaktifkan.{% endif %}
+</div>
+<form method="post" class="panel form">
+  {{ m.csrf() }}
+  {% for key in keys %}{{ m.setting_field(key, values) }}{% endfor %}
+  <button class="btn btn-primary" type="submit">Simpan template</button>
+</form>
+{% endblock %}

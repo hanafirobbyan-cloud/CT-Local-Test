@@ -1,0 +1,83 @@
+{% extends "admin/base.html" %}
+{% import "admin/_macros.html" as m with context %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block content %}
+{% if warnings %}
+<div class="alert alert-warning">
+  <strong>Perlu dilengkapi:</strong>
+  <ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="status-strip">
+  <div class="status-item {{ 'ok' if wa_ready else 'bad' }}">WhatsApp: <strong>{{ wa_name }}</strong> {{ '✓ siap' if wa_ready else '✗ belum siap' }}</div>
+  <div class="status-item {{ 'ok' if email_ready else 'neutral' }}">Email SMTP: {{ '✓ siap' if email_ready else 'tidak aktif' }}</div>
+  <div class="status-item {{ 'ok' if heartbeat_age is not none and heartbeat_age < 120 else 'bad' }}">Worker:
+    {% if heartbeat_age is none %}belum pernah berjalan{% elif heartbeat_age < 120 %}✓ aktif{% else %}✗ tidak aktif ({{ (heartbeat_age / 60)|int }} menit lalu){% endif %}</div>
+  <div class="status-item {{ 'ok' if zoom_published else 'neutral' }}">Link Zoom: {{ 'dipublikasikan ' ~ (zoom_published|local) if zoom_published else 'belum dipublikasikan' }}</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><span class="stat-label">Peserta terdaftar</span><strong class="stat-value">{{ total }}</strong><span class="stat-sub">+{{ today_count }} hari ini</span></div>
+  <div class="stat"><span class="stat-label">Hadir</span><strong class="stat-value">{{ attended }}</strong><span class="stat-sub">{{ ((attended / total * 100) if total else 0)|round(1) }}% dari pendaftar</span></div>
+  <div class="stat"><span class="stat-label">Izin WhatsApp aktif</span><strong class="stat-value">{{ consent_count }}</strong><span class="stat-sub">{{ total - consent_count }} via email/halaman peserta</span></div>
+  <div class="stat"><span class="stat-label">Pesan terkirim</span><strong class="stat-value">{{ (msg.by_status.get('sent', 0) + msg.by_status.get('delivered', 0) + msg.by_status.get('read', 0)) }}</strong><span class="stat-sub">{{ msg.by_status.get('failed', 0) }} gagal · {{ msg.by_status.get('queued', 0) }} antre</span></div>
+  <div class="stat"><span class="stat-label">Sertifikat</span><strong class="stat-value">{{ certs.issued }}</strong><span class="stat-sub">{{ certs.sent }} terkirim · {{ certs.eligible }} berhak</span></div>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Pendaftaran 14 hari terakhir</h2>
+    <svg class="bar-chart" viewBox="0 0 420 170" role="img" aria-label="Grafik pendaftaran harian">
+      {% for day, count in days.items() %}
+        {% set h = (count / max_day * 120) if count else 0 %}
+        {% set x = loop.index0 * 30 + 4 %}
+        <rect x="{{ x }}" y="{{ 135 - h }}" width="22" height="{{ h }}" rx="3" class="bar"><title>{{ day.strftime('%d/%m') }}: {{ count }}</title></rect>
+        {% if count %}<text x="{{ x + 11 }}" y="{{ 130 - h }}" class="bar-value">{{ count }}</text>{% endif %}
+        <text x="{{ x + 11 }}" y="152" class="bar-label">{{ day.strftime('%d') }}</text>
+      {% endfor %}
+      <line x1="0" y1="135" x2="420" y2="135" class="axis"/>
+    </svg>
+  </section>
+  <section class="panel">
+    <h2>Per kategori</h2>
+    <table class="table compact">
+      <tbody>
+      {% for key, label in categories.items() %}
+        {% set c = by_category.get(key, 0) %}
+        <tr><td>{{ label }}</td><td class="num">{{ c }}</td>
+          <td class="w-50"><svg class="hbar" viewBox="0 0 100 8" preserveAspectRatio="none"><rect width="{{ (c / total * 100) if total else 0 }}" height="8" rx="2" class="bar"/></svg></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Status pengiriman per jenis pesan</h2>
+    {% if msg.by_purpose %}
+    <div class="table-wrap"><table class="table compact">
+      <thead><tr><th>Jenis</th>{% for s in ['queued','sent','delivered','read','failed'] %}<th class="num">{{ status_labels[s] }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for purpose, counts in msg.by_purpose.items() %}
+        <tr><td>{{ purpose_labels.get(purpose, purpose) }}</td>{% for s in ['queued','sent','delivered','read','failed'] %}<td class="num">{{ counts.get(s, 0) }}</td>{% endfor %}</tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">Belum ada pesan.</p>{% endif %}
+    <p><a href="{{ url_for('admin.messages') }}">Kelola pesan →</a></p>
+  </section>
+  <section class="panel">
+    <h2>Langkah hari-H</h2>
+    <ol class="checklist">
+      <li>Isi link Zoom di menu <a href="{{ url_for('admin.zoom_page') }}">Link Zoom</a> (tersimpan rahasia).</li>
+      <li>Mulai {{ window_opens|local }} {{ tz_label() }} (30 menit sebelum acara): tekan <em>Publikasikan & kirim</em> — atau aktifkan auto-publish.</li>
+      <li>Saat acara: buka presensi & umumkan kode di menu <a href="{{ url_for('admin.attendance_page') }}">Presensi</a>.</li>
+      <li>Setelah acara: impor laporan peserta Zoom untuk verifikasi kehadiran.</li>
+      <li>Sertifikat terbit & terkirim otomatis untuk peserta hadir (atau kirim manual di menu <a href="{{ url_for('admin.certificates_page') }}">Sertifikat</a>).</li>
+    </ol>
+    <p class="muted small">QR pendaftaran resmi:</p>
+    <p><img src="{{ url_for('admin.registration_qr') }}" alt="QR code pendaftaran" class="qr"> <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.registration_qr', unduh=1) }}">Unduh QR</a></p>
+  </section>
+</div>
+{% endblock %}
